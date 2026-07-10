@@ -28,6 +28,11 @@ def test_parse_invitee_created_webhook_extracts_core_fields():
     assert parsed["meeting_end_time"] == "2025-07-09T18:00:00.000000Z"
     assert parsed["employee_email"] == "zan@dataengineeracademy.com"
     assert parsed["employee_name"] == "Zan Strmec"
+    assert parsed["booking_date"] == "2025-07-09"
+    assert parsed["meeting_date"] == "2025-07-09"
+    assert parsed["meeting_hour"] == 17
+    assert parsed["meeting_day_of_week"] == "Wednesday"
+    assert parsed["meeting_week_start_date"] == "2025-07-07"
 
 
 def test_parse_invitee_created_webhook_extracts_invitee_fields():

@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 from typing import Any, Dict, Optional
+from datetime import datetime, timedelta
 
 
 EVENT_TYPE_TO_CHANNEL = {
@@ -51,6 +52,59 @@ def extract_phone_number(payload: Dict[str, Any]) -> Optional[str]:
     return None
 
 
+def parse_iso_timestamp(timestamp_value: Optional[str]) -> Optional[datetime]:
+    """
+    Parse a Calendly ISO timestamp into a timezone-aware datetime.
+
+    Calendly timestamps commonly end with Z, meaning UTC.
+    """
+    if not timestamp_value:
+        return None
+
+    normalized_value = timestamp_value.replace("Z", "+00:00")
+    return datetime.fromisoformat(normalized_value)
+
+
+def get_date_part(timestamp_value: Optional[str]) -> Optional[str]:
+    parsed_timestamp = parse_iso_timestamp(timestamp_value)
+
+    if not parsed_timestamp:
+        return None
+
+    return parsed_timestamp.date().isoformat()
+
+
+def get_hour_part(timestamp_value: Optional[str]) -> Optional[int]:
+    parsed_timestamp = parse_iso_timestamp(timestamp_value)
+
+    if not parsed_timestamp:
+        return None
+
+    return parsed_timestamp.hour
+
+
+def get_day_of_week(timestamp_value: Optional[str]) -> Optional[str]:
+    parsed_timestamp = parse_iso_timestamp(timestamp_value)
+
+    if not parsed_timestamp:
+        return None
+
+    return parsed_timestamp.strftime("%A")
+
+
+def get_week_start_date(timestamp_value: Optional[str]) -> Optional[str]:
+    """
+    Return Monday of the timestamp's week as YYYY-MM-DD.
+    """
+    parsed_timestamp = parse_iso_timestamp(timestamp_value)
+
+    if not parsed_timestamp:
+        return None
+
+    week_start = parsed_timestamp.date() - timedelta(days=parsed_timestamp.weekday())
+    return week_start.isoformat()
+
+
 def parse_invitee_created_webhook(event: Dict[str, Any]) -> Dict[str, Any]:
     """
     Flatten a Calendly invitee.created webhook event into a Silver-friendly record.
@@ -79,6 +133,9 @@ def parse_invitee_created_webhook(event: Dict[str, Any]) -> Dict[str, Any]:
 
     invitee_uri = payload.get("uri")
     scheduled_event_uri = scheduled_event.get("uri")
+
+    booking_created_at = payload.get("created_at")
+    meeting_start_time = scheduled_event.get("start_time")
 
     return {
         # Webhook metadata
@@ -117,10 +174,17 @@ def parse_invitee_created_webhook(event: Dict[str, Any]) -> Dict[str, Any]:
         "meeting_status": scheduled_event.get("status"),
         "meeting_created_at": scheduled_event.get("created_at"),
         "meeting_updated_at": scheduled_event.get("updated_at"),
-        "meeting_start_time": scheduled_event.get("start_time"),
+        "meeting_start_time": meeting_start_time,
         "meeting_end_time": scheduled_event.get("end_time"),
         "meeting_location_type": safe_get(scheduled_event, "location", "type"),
         "meeting_location": safe_get(scheduled_event, "location", "location"),
+
+        # Derived date fields
+        "booking_date": get_date_part(booking_created_at),
+        "meeting_date": get_date_part(meeting_start_time),
+        "meeting_hour": get_hour_part(meeting_start_time),
+        "meeting_day_of_week": get_day_of_week(meeting_start_time),
+        "meeting_week_start_date": get_week_start_date(meeting_start_time),
 
         # Employee / host details
         "employee_user_uri": primary_membership.get("user"),
