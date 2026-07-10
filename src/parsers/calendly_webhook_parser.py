@@ -65,6 +65,10 @@ def parse_invitee_created_webhook(event: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError("Calendly webhook payload is missing or empty.")
 
     scheduled_event = payload.get("scheduled_event") or {}
+
+    if not scheduled_event:
+        raise ValueError("Calendly webhook payload is missing scheduled_event data.")
+
     tracking = payload.get("tracking") or {}
 
     event_type_uri = scheduled_event.get("event_type")
