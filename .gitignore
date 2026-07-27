@@ -1,7 +1,17 @@
+# Virtual environments
 py3_12/
 .venv/
 venv/
+
+# Python cache
 __pycache__/
 *.pyc
+
+# Environment / local data
 .env
 /data
+
+# Build/deployment artifacts
+build/
+*.zip
+lambda-response.json
