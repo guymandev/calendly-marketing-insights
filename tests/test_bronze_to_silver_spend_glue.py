@@ -15,12 +15,13 @@ from src.glue_jobs.bronze_to_silver_spend_glue import (
     transform_bronze_spend_to_silver,
 )
 
-
+# Set timezone to UTC so that execution is consistent, regardless of local timezone. 
 @pytest.fixture(scope="session")
 def spark():
     spark_session = (
         SparkSession.builder.master("local[1]")
         .appName("test-bronze-to-silver-spend-glue")
+        .config("spark.sql.session.timeZone", "UTC")
         .getOrCreate()
     )
 

@@ -64,7 +64,7 @@ def parse_job_args(argv: List[str]) -> Dict[str, str]:
 
     return args
 
-
+# Set timezone to UTC so that execution is consistent, regardless of local timezone. 
 def create_spark_session(app_name: str = "bronze-to-silver-spend") -> SparkSession:
     """
     Create a SparkSession configured for Delta Lake.
@@ -73,6 +73,7 @@ def create_spark_session(app_name: str = "bronze-to-silver-spend") -> SparkSessi
     """
     return (
         SparkSession.builder.appName(app_name)
+        .config("spark.sql.session.timeZone", "UTC")
         .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
         .config(
             "spark.sql.catalog.spark_catalog",
