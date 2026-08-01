@@ -17,7 +17,7 @@ from pyspark.sql.functions import (
     to_date,
     to_timestamp,
 )
-from pyspark.sql.types import IntegerType, StringType
+from pyspark.sql.types import IntegerType, StringType, StructType
 
 
 FACEBOOK_EVENT_TYPE_URI = (
@@ -152,6 +152,45 @@ def build_event_type_channel_map():
     )
 
 
+def nested_field_exists(schema: StructType, field_path: str) -> bool:
+    """
+    Check whether a nested struct field exists in a DataFrame schema.
+
+    Example:
+        nested_field_exists(df.schema, "payload.canceled")
+    """
+    current_type = schema
+
+    for field_name in field_path.split("."):
+        if not isinstance(current_type, StructType):
+            return False
+
+        matching_field = next(
+            (field for field in current_type.fields if field.name == field_name),
+            None,
+        )
+
+        if matching_field is None:
+            return False
+
+        current_type = matching_field.dataType
+
+    return True
+
+
+def safe_col(dataframe: DataFrame, field_path: str, default_value=None):
+    """
+    Return a Spark column if it exists; otherwise return a null/default literal.
+
+    This is useful for optional webhook fields that may exist in sample data
+    but be missing from real Calendly payloads.
+    """
+    if nested_field_exists(dataframe.schema, field_path):
+        return col(field_path)
+
+    return lit(default_value)
+
+
 def transform_bronze_calendly_to_silver(bronze_df: DataFrame) -> DataFrame:
     """
     Transform Bronze Calendly webhook records into the Silver Calendly bookings table.
@@ -186,8 +225,8 @@ def transform_bronze_calendly_to_silver(bronze_df: DataFrame) -> DataFrame:
         col("payload.email").alias("invitee_email"),
         col("payload.name").alias("invitee_name"),
         col("payload.status").alias("invitee_status"),
-        col("payload.canceled").alias("invitee_canceled"),
-        col("payload.cancel_reason").alias("invitee_cancel_reason"),
+        safe_col(flattened_df, "payload.canceled").alias("invitee_canceled"),
+        safe_col(flattened_df, "payload.cancel_reason").alias("invitee_cancel_reason"),
         col("payload.scheduled_event.uri").alias("scheduled_event_uri"),
         extract_id_from_uri(col("payload.scheduled_event.uri")).alias(
             "scheduled_event_id"
