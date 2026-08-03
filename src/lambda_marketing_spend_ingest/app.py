@@ -270,6 +270,48 @@ def ingest_spend_file(
     }
 
 
+def maybe_start_glue_workflow() -> str | None:
+    """
+    Optionally start the Glue Workflow after successful marketing spend ingestion.
+    """
+    start_glue_workflow = os.getenv("START_GLUE_WORKFLOW", "false").lower() == "true"
+    workflow_name = os.getenv("GLUE_WORKFLOW_NAME")
+
+    if not start_glue_workflow:
+        return None
+
+    if not workflow_name:
+        raise ValueError("GLUE_WORKFLOW_NAME must be set when START_GLUE_WORKFLOW=true")
+
+    glue_client = boto3.client("glue")
+    response = glue_client.start_workflow_run(Name=workflow_name)
+
+    return response["RunId"]
+
+
+def get_max_files() -> int | None:
+    """
+    Read optional MAX_FILES environment variable.
+
+    If unset, return None and allow all selected files to be ingested.
+    If set, require a positive integer.
+    """
+    max_files_raw = os.getenv("MAX_FILES")
+
+    if not max_files_raw:
+        return None
+
+    try:
+        max_files = int(max_files_raw)
+    except ValueError as exc:
+        raise ValueError(f"MAX_FILES must be an integer: {max_files_raw}") from exc
+
+    if max_files <= 0:
+        raise ValueError(f"MAX_FILES must be greater than zero: {max_files}")
+
+    return max_files
+
+
 def lambda_handler(event: Optional[Dict[str, Any]], context: Optional[Any]) -> Dict[str, Any]:
     """
     Ingest marketing spend JSON files from the public DEA S3 source into Bronze S3.
@@ -287,7 +329,15 @@ def lambda_handler(event: Optional[Dict[str, Any]], context: Optional[Any]) -> D
         file_names = normalize_file_index(file_index_payload)
         selected_file_names = filter_file_names_from_event(file_names, event)
 
+        max_files = get_max_files()
+
+        if max_files is not None:
+            selected_file_names = selected_file_names[-max_files:]
+
         if not selected_file_names:
+
+            workflow_run_id = maybe_start_glue_workflow()
+
             return build_response(
                 200,
                 {
@@ -296,6 +346,8 @@ def lambda_handler(event: Optional[Dict[str, Any]], context: Optional[Any]) -> D
                     "available_file_count": len(file_names),
                     "ingested_file_count": 0,
                     "ingested_files": [],
+                    "glue_workflow_name": os.getenv("GLUE_WORKFLOW_NAME"),
+                    "glue_workflow_run_id": workflow_run_id,
                 },
             )
 
@@ -311,6 +363,8 @@ def lambda_handler(event: Optional[Dict[str, Any]], context: Optional[Any]) -> D
                 )
             )
 
+        workflow_run_id = maybe_start_glue_workflow()
+
         return build_response(
             200,
             {
@@ -320,6 +374,8 @@ def lambda_handler(event: Optional[Dict[str, Any]], context: Optional[Any]) -> D
                 "available_file_count": len(file_names),
                 "ingested_file_count": len(ingested_files),
                 "ingested_files": ingested_files,
+                "glue_workflow_name": os.getenv("GLUE_WORKFLOW_NAME"),
+                "glue_workflow_run_id": workflow_run_id,
             },
         )
 
