@@ -8,10 +8,14 @@ import streamlit as st
 import plotly.express as px
 
 
-AWS_REGION = "us-east-2"
-DATABASE_NAME = "calendly_marketing_insights"
-ATHENA_OUTPUT_LOCATION = (
-    "s3://calendly-marketing-insights-guy-raw/athena-results/"
+AWS_REGION = st.secrets.get("AWS_DEFAULT_REGION", "us-east-2")
+DATABASE_NAME = st.secrets.get(
+    "ATHENA_DATABASE_NAME",
+    "calendly_marketing_insights",
+)
+ATHENA_OUTPUT_LOCATION = st.secrets.get(
+    "ATHENA_OUTPUT_LOCATION",
+    "s3://calendly-marketing-insights-guy-raw/athena-results/",
 )
 
 
@@ -138,12 +142,34 @@ def make_display_dataframe(dataframe: pd.DataFrame) -> pd.DataFrame:
     return dataframe.rename(columns=FRIENDLY_COLUMN_NAMES)
 
 
+def get_boto3_client(service_name: str):
+    """
+    Create a boto3 client.
+
+    Locally, this can use AWS_PROFILE / ~/.aws credentials.
+    On Streamlit Community Cloud, this uses secrets from the app settings.
+    """
+    aws_access_key_id = st.secrets.get("AWS_ACCESS_KEY_ID", None)
+    aws_secret_access_key = st.secrets.get("AWS_SECRET_ACCESS_KEY", None)
+    aws_region = st.secrets.get("AWS_DEFAULT_REGION", AWS_REGION)
+
+    if aws_access_key_id and aws_secret_access_key:
+        return boto3.client(
+            service_name,
+            region_name=aws_region,
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+        )
+
+    return boto3.client(service_name, region_name=AWS_REGION)
+
+
 def get_athena_client():
-    return boto3.client("athena", region_name=AWS_REGION)
+    return get_boto3_client("athena")
 
 
 def get_s3_client():
-    return boto3.client("s3", region_name=AWS_REGION)
+    return get_boto3_client("s3")
 
 
 def parse_s3_uri(s3_uri: str) -> tuple[str, str]:
