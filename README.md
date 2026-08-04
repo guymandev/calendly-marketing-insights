@@ -70,7 +70,7 @@ AWS Glue PySpark jobs transform data through the lakehouse layers. A Glue Crawle
 
 The walkthrough demonstrates the end-to-end pipeline, including Calendly webhook ingestion, scheduled marketing spend ingestion, AWS Glue transformations, Athena validation, and the Streamlit dashboard.
 
-[Watch the Calendly Marketing Insights walkthrough](docs/videos/calendly-walkthrough.mp4)
+[Watch or download the Calendly Marketing Insights walkthrough](https://github.com/guymandev/calendly-marketing-insights/raw/main/docs/videos/calendly-walkthrough.mp4)
 
 ## Data Sources
 
