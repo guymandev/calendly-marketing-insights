@@ -66,6 +66,12 @@ Bronze Delta tables
 
 AWS Glue PySpark jobs transform data through the lakehouse layers. A Glue Crawler registers the Gold Delta tables in the Glue Data Catalog so that Athena can query them.
 
+## Video Walkthrough
+
+The walkthrough demonstrates the end-to-end pipeline, including Calendly webhook ingestion, scheduled marketing spend ingestion, AWS Glue transformations, Athena validation, and the Streamlit dashboard.
+
+[Watch the Calendly Marketing Insights walkthrough](docs/videos/calendly-walkthrough.mp4)
+
 ## Data Sources
 
 ### Calendly webhook events
@@ -181,6 +187,12 @@ Security configuration:
 S3 Block Public Access: enabled
 Default encryption: SSE-S3
 ```
+
+### IAM Roles
+
+- **Lambda execution role** (`calendly-webhook-lambda-role`): used by the webhook and marketing spend ingestion Lambda functions. Allows Lambda to write Bronze records to S3, write logs to CloudWatch, and start the Glue Workflow.
+- **EventBridge Scheduler role** (`calendly-marketing-spend-scheduler-role`): allows the daily EventBridge Scheduler to invoke the marketing spend ingestion Lambda.
+- **Glue service role** (`calendly-marketing-insights-glue-role`): used by Glue jobs and the Glue Crawler to read/write S3 Delta tables, access Glue scripts, write logs, and update the Glue Data Catalog.
 
 ### Lambda
 
